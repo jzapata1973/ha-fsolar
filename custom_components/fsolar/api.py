@@ -13,7 +13,14 @@ from aiohttp import ClientResponseError, ClientSession
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from .const import API_BASE_URL, SOURCE_PRIORITY_FIELD, WEB_BASE_URL
+from .const import (
+    API_BASE_URL,
+    MAX_GRID_CHARGE_CURRENT_FIELD,
+    MAX_GRID_CHARGE_CURRENT_MAX,
+    MAX_GRID_CHARGE_CURRENT_MIN,
+    SOURCE_PRIORITY_FIELD,
+    WEB_BASE_URL,
+)
 
 
 class FsolarError(Exception):
@@ -37,8 +44,16 @@ class FsolarInverter:
     model: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class FsolarSettings:
+    """Supported settings read from an inverter."""
+
+    source_priority: int
+    max_grid_charge_current: int
+
+
 class FsolarApi:
-    """Small client covering authentication, discovery and cspri control."""
+    """Client covering authentication, discovery and supported controls."""
 
     def __init__(self, session: ClientSession, username: str, password: str) -> None:
         self._session = session
@@ -105,7 +120,7 @@ class FsolarApi:
             if not serial:
                 continue
             try:
-                await self.async_get_source_priority(serial)
+                await self.async_get_settings(serial)
             except FsolarError:
                 continue
             alias = (
@@ -119,29 +134,93 @@ class FsolarApi:
             )
         return inverters
 
-    async def async_get_source_priority(self, serial: str) -> int:
-        """Read Source Priority Charge (cspri) from an inverter."""
+    async def async_get_settings(self, serial: str) -> FsolarSettings:
+        """Read all supported settings from an inverter."""
         data = await self._async_authed_request(
             "/deviceCommand/get_command_setting_original_value",
             {"deviceSn": serial, "oldVersion": 1},
         )
         values = data.get("data") or {}
-        raw_value = values.get(SOURCE_PRIORITY_FIELD, values.get("cSPri"))
+        raw_priority = values.get(SOURCE_PRIORITY_FIELD, values.get("cSPri"))
+        raw_current = values.get(
+            MAX_GRID_CHARGE_CURRENT_FIELD, values.get("MACCurr")
+        )
         try:
-            value = int(raw_value)
+            priority = int(raw_priority)
         except (TypeError, ValueError) as err:
             raise FsolarError(f"Device {serial[-4:]} did not return cspri") from err
-        if value not in (1, 2, 3):
+        if priority not in (1, 2, 3):
             raise FsolarError(
-                f"Device {serial[-4:]} returned unsupported cspri={value}"
+                f"Device {serial[-4:]} returned unsupported cspri={priority}"
             )
-        return value
+        try:
+            current = int(raw_current)
+        except (TypeError, ValueError) as err:
+            raise FsolarError(f"Device {serial[-4:]} did not return maccurr") from err
+        if not MAX_GRID_CHARGE_CURRENT_MIN <= current <= MAX_GRID_CHARGE_CURRENT_MAX:
+            raise FsolarError(
+                f"Device {serial[-4:]} returned unsupported maccurr={current}"
+            )
+        return FsolarSettings(priority, current)
+
+    async def async_get_source_priority(self, serial: str) -> int:
+        """Read Source Priority Charge (cspri) from an inverter."""
+        return (await self.async_get_settings(serial)).source_priority
+
+    async def async_get_max_grid_charge_current(self, serial: str) -> int:
+        """Read maximum grid charge current (maccurr) from an inverter."""
+        return (await self.async_get_settings(serial)).max_grid_charge_current
 
     async def async_set_source_priority(self, serial: str, value: int) -> None:
         """Set cspri, wait for completion, and verify by reading it back."""
         if value not in (1, 2, 3):
             raise ValueError("Source Priority Charge must be 1, 2 or 3")
 
+        await self._async_set_setting(
+            serial=serial,
+            field=SOURCE_PRIORITY_FIELD,
+            value=value,
+            param_type=1,
+        )
+        actual = await self.async_get_source_priority(serial)
+        if actual != value:
+            raise FsolarCommandError(
+                f"Verification failed for {serial[-4:]}: "
+                f"expected {value}, received {actual}"
+            )
+
+    async def async_set_max_grid_charge_current(
+        self, serial: str, value: int
+    ) -> None:
+        """Set maximum grid charge current and verify it."""
+        if not MAX_GRID_CHARGE_CURRENT_MIN <= value <= MAX_GRID_CHARGE_CURRENT_MAX:
+            raise ValueError(
+                "Maximum grid charge current must be between "
+                f"{MAX_GRID_CHARGE_CURRENT_MIN} and "
+                f"{MAX_GRID_CHARGE_CURRENT_MAX} A"
+            )
+        await self._async_set_setting(
+            serial=serial,
+            field=MAX_GRID_CHARGE_CURRENT_FIELD,
+            value=value,
+            param_type=0,
+        )
+        actual = await self.async_get_max_grid_charge_current(serial)
+        if actual != value:
+            raise FsolarCommandError(
+                f"Verification failed for {serial[-4:]}: "
+                f"expected {value} A, received {actual} A"
+            )
+
+    async def _async_set_setting(
+        self,
+        *,
+        serial: str,
+        field: str,
+        value: int,
+        param_type: int,
+    ) -> None:
+        """Create a setting command and wait until Fsolar applies it."""
         payload = {
             "deviceSn": serial,
             "timeZone": "America/Santiago",
@@ -152,14 +231,14 @@ class FsolarApi:
             "deviceCommands": [
                 {
                     "dataHandlerType": 0,
-                    "fieldName": SOURCE_PRIORITY_FIELD,
+                    "fieldName": field,
                     "groupId": 0,
-                    "paramType": 1,
+                    "paramType": param_type,
                     "useType": 3,
                     "fieldValue": value,
                 }
             ],
-            "realContentParam": [SOURCE_PRIORITY_FIELD],
+            "realContentParam": [field],
         }
         response = await self._async_authed_request(
             "/deviceCommand/create_setting_command", payload
@@ -171,21 +250,25 @@ class FsolarApi:
         if not command_id:
             raise FsolarCommandError("Fsolar did not return a command id")
 
-        await self._async_wait_for_command(command_id, serial, value)
-        actual = await self.async_get_source_priority(serial)
-        if actual != value:
-            raise FsolarCommandError(
-                f"Verification failed for {serial[-4:]}: "
-                f"expected {value}, received {actual}"
-            )
+        await self._async_wait_for_command(command_id, serial, field, value)
 
     async def _async_wait_for_command(
-        self, command_id: str, serial: str, expected: int
+        self,
+        command_id: str,
+        serial: str,
+        field: str,
+        expected: int,
     ) -> None:
         """Wait until the setting reads back or Fsolar reports failure."""
         for _attempt in range(10):
             await asyncio.sleep(2)
-            if await self.async_get_source_priority(serial) == expected:
+            settings = await self.async_get_settings(serial)
+            actual = (
+                settings.source_priority
+                if field == SOURCE_PRIORITY_FIELD
+                else settings.max_grid_charge_current
+            )
+            if actual == expected:
                 return
             response = await self._async_authed_request(
                 f"/deviceCommand/get_device_command_detail/{command_id}",

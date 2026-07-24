@@ -2,12 +2,13 @@
 
 Custom Home Assistant integration for Felicity Solar's Fsolar cloud API.
 
-The initial release exposes **Source Priority Charge** as one `select` entity
-per supported inverter:
+The integration exposes these controls for every supported inverter:
 
-- `CSO` — Solar first
-- `SNU` — Solar and utility
-- `OSO` — Only solar
+- **Source Priority Charge** (`select`):
+  - `CSO` — Solar first
+  - `SNU` — Solar and utility
+  - `OSO` — Only solar
+- **Maximum grid charge current** (`number`): 10–240 A in whole-amp steps.
 
 Every write is sent to the selected inverter only. The integration waits for
 the cloud command result and then reads the setting back before reporting the

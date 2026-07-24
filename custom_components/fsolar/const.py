@@ -3,7 +3,7 @@
 from typing import Final
 
 DOMAIN: Final = "fsolar"
-PLATFORMS: Final = ["select"]
+PLATFORMS: Final = ["number", "select"]
 
 CONF_INVERTERS: Final = "inverters"
 
@@ -21,3 +21,7 @@ SOURCE_PRIORITY_VALUES: Final = {
 SOURCE_PRIORITY_BY_VALUE: Final = {
     value: option for option, value in SOURCE_PRIORITY_VALUES.items()
 }
+
+MAX_GRID_CHARGE_CURRENT_FIELD: Final = "maccurr"
+MAX_GRID_CHARGE_CURRENT_MIN: Final = 10
+MAX_GRID_CHARGE_CURRENT_MAX: Final = 240

@@ -21,6 +21,11 @@
     }
   },
   "entity": {
+    "number": {
+      "max_grid_charge_current": {
+        "name": "Maximum grid charge current"
+      }
+    },
     "select": {
       "source_priority_charge": {
         "name": "Source Priority Charge",

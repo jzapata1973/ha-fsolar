@@ -11,14 +11,14 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api import FsolarApi, FsolarInverter
+from .api import FsolarApi, FsolarInverter, FsolarSettings
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class FsolarCoordinator(DataUpdateCoordinator[dict[str, int]]):
-    """Poll Source Priority Charge for all configured inverters."""
+class FsolarCoordinator(DataUpdateCoordinator[dict[str, FsolarSettings]]):
+    """Poll supported settings for all configured inverters."""
 
     def __init__(
         self,
@@ -36,10 +36,10 @@ class FsolarCoordinator(DataUpdateCoordinator[dict[str, int]]):
         self.inverters = inverters
         self.failed_serials: set[str] = set()
 
-    async def _async_update_data(self) -> dict[str, int]:
+    async def _async_update_data(self) -> dict[str, FsolarSettings]:
         results = await asyncio.gather(
             *(
-                self.api.async_get_source_priority(inverter.serial)
+                self.api.async_get_settings(inverter.serial)
                 for inverter in self.inverters
             ),
             return_exceptions=True,

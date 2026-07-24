@@ -21,6 +21,11 @@
     }
   },
   "entity": {
+    "number": {
+      "max_grid_charge_current": {
+        "name": "Corriente máxima de carga desde la red"
+      }
+    },
     "select": {
       "source_priority_charge": {
         "name": "Prioridad de fuente de carga",
