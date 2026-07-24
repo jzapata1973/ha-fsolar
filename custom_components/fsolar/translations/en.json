@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Fsolar",
+        "description": "Enter the credentials used by the official Fsolar app.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Fsolar",
+      "invalid_auth": "Invalid email or password",
+      "no_inverters": "No compatible inverters were found"
+    },
+    "abort": {
+      "already_configured": "This Fsolar account is already configured"
+    }
+  },
+  "entity": {
+    "select": {
+      "source_priority_charge": {
+        "name": "Source Priority Charge",
+        "state": {
+          "CSO": "Solar first",
+          "SNU": "Solar and utility",
+          "OSO": "Only solar"
+        }
+      }
+    }
+  }
+}
