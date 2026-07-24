@@ -55,7 +55,25 @@ class FsolarApi:
             "password": encrypted_password,
             "version": "1.0",
         }
-        data = await self._async_request("/userlogin", payload, authenticated=False)
+        try:
+            data = await self._async_request(
+                "/userlogin", payload, authenticated=False
+            )
+        except FsolarError as err:
+            message = str(err).lower()
+            if any(
+                marker in message
+                for marker in (
+                    "contraseña",
+                    "password",
+                    "usuario",
+                    "username",
+                    "account",
+                    "cuenta",
+                )
+            ):
+                raise FsolarAuthenticationError(str(err)) from err
+            raise
         token = (data.get("data") or {}).get("token")
         if not token:
             raise FsolarAuthenticationError(

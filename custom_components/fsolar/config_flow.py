@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -15,6 +16,8 @@ from .api import (
     FsolarError,
 )
 from .const import CONF_INVERTERS, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class FsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -40,10 +43,15 @@ class FsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 await api.async_login()
                 inverters = await api.async_list_inverters()
-            except FsolarAuthenticationError:
+            except FsolarAuthenticationError as err:
+                _LOGGER.warning("Fsolar authentication failed: %s", err)
                 errors["base"] = "invalid_auth"
-            except FsolarError:
+            except FsolarError as err:
+                _LOGGER.warning("Unable to connect to Fsolar: %s", err)
                 errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected error while configuring Fsolar")
+                errors["base"] = "unknown"
             else:
                 if not inverters:
                     errors["base"] = "no_inverters"

@@ -13,7 +13,8 @@
     "error": {
       "cannot_connect": "No fue posible conectarse con Fsolar",
       "invalid_auth": "Correo o contraseña incorrectos",
-      "no_inverters": "No se encontraron inversores compatibles"
+      "no_inverters": "No se encontraron inversores compatibles",
+      "unknown": "Error inesperado al conectar con Fsolar"
     },
     "abort": {
       "already_configured": "Esta cuenta Fsolar ya está configurada"
