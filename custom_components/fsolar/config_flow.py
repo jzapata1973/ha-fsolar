@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, PERCENTAGE
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import SectionConfig, section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -47,6 +48,9 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+SECTION_POINT_A = "point_a"
+SECTION_POINT_B = "point_b"
 
 
 class FsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -125,25 +129,53 @@ class FsolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class FsolarOptionsFlow(config_entries.OptionsFlowWithReload):
     """Configure the SolarAssistant-style battery reserve controller."""
 
-    def __init__(self) -> None:
-        self._reserve_input: dict[str, Any] = {}
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Configure whether reserve control is enabled and select SOC sources."""
+        """Configure reserve control, SOC sources, and the daily reserve curve."""
         errors: dict[str, str] = {}
         if user_input is not None:
+            point_a = user_input[SECTION_POINT_A]
+            point_b = user_input[SECTION_POINT_B]
+            options = {
+                CONF_RESERVE_ENABLED: user_input[CONF_RESERVE_ENABLED],
+                CONF_RESERVE_SOC_ENTITIES: user_input[CONF_RESERVE_SOC_ENTITIES],
+                **point_a,
+                **point_b,
+            }
             if (
-                user_input[CONF_RESERVE_ENABLED]
-                and not user_input[CONF_RESERVE_SOC_ENTITIES]
+                options[CONF_RESERVE_ENABLED]
+                and not options[CONF_RESERVE_SOC_ENTITIES]
             ):
                 errors[CONF_RESERVE_SOC_ENTITIES] = "soc_entities_required"
+            elif (
+                options[CONF_RESERVE_POINT_A_TIME]
+                == options[CONF_RESERVE_POINT_B_TIME]
+            ):
+                errors["base"] = "reserve_times_must_differ"
+            elif (
+                options[CONF_RESERVE_POINT_A_HIGH]
+                <= options[CONF_RESERVE_POINT_A_LOW]
+            ):
+                errors["base"] = "point_a_high_must_exceed_low"
+            elif (
+                options[CONF_RESERVE_POINT_B_HIGH]
+                <= options[CONF_RESERVE_POINT_B_LOW]
+            ):
+                errors["base"] = "point_b_high_must_exceed_low"
             else:
-                self._reserve_input = user_input
-                return await self.async_step_schedule()
+                return self.async_create_entry(title="", data=options)
 
         current = _reserve_options(self.config_entry.options)
+        percentage_selector = NumberSelector(
+            NumberSelectorConfig(
+                min=0,
+                max=100,
+                step=1,
+                unit_of_measurement=PERCENTAGE,
+                mode=NumberSelectorMode.BOX,
+            )
+        )
         schema = vol.Schema(
             {
                 vol.Required(
@@ -160,82 +192,63 @@ class FsolarOptionsFlow(config_entries.OptionsFlowWithReload):
                         reorder=True,
                     )
                 ),
+                vol.Required(SECTION_POINT_A): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_RESERVE_POINT_A_TIME,
+                                default=DEFAULT_RESERVE_POINT_A_TIME,
+                            ): TimeSelector(),
+                            vol.Required(
+                                CONF_RESERVE_POINT_A_LOW,
+                                default=DEFAULT_RESERVE_POINT_A_LOW,
+                            ): percentage_selector,
+                            vol.Required(
+                                CONF_RESERVE_POINT_A_HIGH,
+                                default=DEFAULT_RESERVE_POINT_A_HIGH,
+                            ): percentage_selector,
+                        }
+                    ),
+                    SectionConfig(collapsed=False),
+                ),
+                vol.Required(SECTION_POINT_B): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_RESERVE_POINT_B_TIME,
+                                default=DEFAULT_RESERVE_POINT_B_TIME,
+                            ): TimeSelector(),
+                            vol.Required(
+                                CONF_RESERVE_POINT_B_LOW,
+                                default=DEFAULT_RESERVE_POINT_B_LOW,
+                            ): percentage_selector,
+                            vol.Required(
+                                CONF_RESERVE_POINT_B_HIGH,
+                                default=DEFAULT_RESERVE_POINT_B_HIGH,
+                            ): percentage_selector,
+                        }
+                    ),
+                    SectionConfig(collapsed=False),
+                ),
             }
         )
+        suggested = {
+            CONF_RESERVE_ENABLED: current[CONF_RESERVE_ENABLED],
+            CONF_RESERVE_SOC_ENTITIES: current[CONF_RESERVE_SOC_ENTITIES],
+            SECTION_POINT_A: {
+                CONF_RESERVE_POINT_A_TIME: current[CONF_RESERVE_POINT_A_TIME],
+                CONF_RESERVE_POINT_A_LOW: current[CONF_RESERVE_POINT_A_LOW],
+                CONF_RESERVE_POINT_A_HIGH: current[CONF_RESERVE_POINT_A_HIGH],
+            },
+            SECTION_POINT_B: {
+                CONF_RESERVE_POINT_B_TIME: current[CONF_RESERVE_POINT_B_TIME],
+                CONF_RESERVE_POINT_B_LOW: current[CONF_RESERVE_POINT_B_LOW],
+                CONF_RESERVE_POINT_B_HIGH: current[CONF_RESERVE_POINT_B_HIGH],
+            },
+        }
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(schema, current),
-            errors=errors,
-        )
-
-    async def async_step_schedule(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Configure the two-point daily reserve curve."""
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            if (
-                user_input[CONF_RESERVE_POINT_A_TIME]
-                == user_input[CONF_RESERVE_POINT_B_TIME]
-            ):
-                errors["base"] = "reserve_times_must_differ"
-            if (
-                user_input[CONF_RESERVE_POINT_A_HIGH]
-                <= user_input[CONF_RESERVE_POINT_A_LOW]
-            ):
-                errors[CONF_RESERVE_POINT_A_HIGH] = "high_must_exceed_low"
-            if (
-                user_input[CONF_RESERVE_POINT_B_HIGH]
-                <= user_input[CONF_RESERVE_POINT_B_LOW]
-            ):
-                errors[CONF_RESERVE_POINT_B_HIGH] = "high_must_exceed_low"
-            if not errors:
-                return self.async_create_entry(
-                    title="",
-                    data={**self._reserve_input, **user_input},
-                )
-
-        current = _reserve_options(self.config_entry.options)
-        percentage_selector = NumberSelector(
-            NumberSelectorConfig(
-                min=0,
-                max=100,
-                step=1,
-                unit_of_measurement=PERCENTAGE,
-                mode=NumberSelectorMode.BOX,
-            )
-        )
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_RESERVE_POINT_A_TIME,
-                    default=DEFAULT_RESERVE_POINT_A_TIME,
-                ): TimeSelector(),
-                vol.Required(
-                    CONF_RESERVE_POINT_A_LOW,
-                    default=DEFAULT_RESERVE_POINT_A_LOW,
-                ): percentage_selector,
-                vol.Required(
-                    CONF_RESERVE_POINT_A_HIGH,
-                    default=DEFAULT_RESERVE_POINT_A_HIGH,
-                ): percentage_selector,
-                vol.Required(
-                    CONF_RESERVE_POINT_B_TIME,
-                    default=DEFAULT_RESERVE_POINT_B_TIME,
-                ): TimeSelector(),
-                vol.Required(
-                    CONF_RESERVE_POINT_B_LOW,
-                    default=DEFAULT_RESERVE_POINT_B_LOW,
-                ): percentage_selector,
-                vol.Required(
-                    CONF_RESERVE_POINT_B_HIGH,
-                    default=DEFAULT_RESERVE_POINT_B_HIGH,
-                ): percentage_selector,
-            }
-        )
-        return self.async_show_form(
-            step_id="schedule",
-            data_schema=self.add_suggested_values_to_schema(schema, current),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
             errors=errors,
         )
 

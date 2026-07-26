@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "title": "Control de reserva de batería",
-        "description": "Selecciona todos los sensores de SOC que deben permanecer protegidos. El SOC válido más bajo controlará los inversores Fsolar.",
+        "description": "Protege una reserva mínima usando el menor SOC seleccionado. Configura abajo la curva diaria completa; ambos puntos se conectan linealmente durante las 24 horas.",
         "data": {
           "reserve_enabled": "Activar control automático de reserva",
           "reserve_soc_entities": "Sensores de SOC de las baterías"
@@ -32,25 +32,42 @@
         "data_description": {
           "reserve_enabled": "Al activarlo, Fsolar cambiará automáticamente la prioridad de salida en cada inversor.",
           "reserve_soc_entities": "Todos los sensores seleccionados deben estar disponibles e indicar un valor entre 0 y 100."
-        }
-      },
-      "schedule": {
-        "title": "Curva diaria de reserva",
-        "description": "Los límites se interpolan entre los puntos A y B. En el límite bajo o por debajo se ordena UTI; en el límite alto o por encima se ordena SBU.",
-        "data": {
-          "reserve_point_a_time": "Hora del punto A",
-          "reserve_point_a_low": "Límite bajo del punto A",
-          "reserve_point_a_high": "Límite alto del punto A",
-          "reserve_point_b_time": "Hora del punto B",
-          "reserve_point_b_low": "Límite bajo del punto B",
-          "reserve_point_b_high": "Límite alto del punto B"
+        },
+        "sections": {
+          "point_a": {
+            "name": "Punto A",
+            "description": "Primer punto diario de la reserva.",
+            "data": {
+              "reserve_point_a_time": "Hora",
+              "reserve_point_a_low": "Red primero en o bajo",
+              "reserve_point_a_high": "Solar/Batería/Red en o sobre"
+            },
+            "data_description": {
+              "reserve_point_a_low": "En este SOC o menos, todos los inversores cambian a UTI para proteger la reserva.",
+              "reserve_point_a_high": "En este SOC o más, todos los inversores cambian a SBU y la batería queda disponible."
+            }
+          },
+          "point_b": {
+            "name": "Punto B",
+            "description": "Segundo punto diario de la reserva.",
+            "data": {
+              "reserve_point_b_time": "Hora",
+              "reserve_point_b_low": "Red primero en o bajo",
+              "reserve_point_b_high": "Solar/Batería/Red en o sobre"
+            },
+            "data_description": {
+              "reserve_point_b_low": "En este SOC o menos, todos los inversores cambian a UTI para proteger la reserva.",
+              "reserve_point_b_high": "En este SOC o más, todos los inversores cambian a SBU y la batería queda disponible."
+            }
+          }
         }
       }
     },
     "error": {
       "soc_entities_required": "Selecciona al menos un sensor de SOC antes de activar el control",
       "reserve_times_must_differ": "Los puntos A y B deben tener horas diferentes",
-      "high_must_exceed_low": "El límite alto debe ser mayor que el límite bajo"
+      "point_a_high_must_exceed_low": "En el punto A, el nivel Solar/Batería/Red debe ser mayor que el nivel Red primero",
+      "point_b_high_must_exceed_low": "En el punto B, el nivel Solar/Batería/Red debe ser mayor que el nivel Red primero"
     }
   },
   "entity": {

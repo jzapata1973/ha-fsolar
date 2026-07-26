@@ -20,15 +20,19 @@ new state.
 
 ## Battery reserve control
 
-Version 0.4.0 adds a SolarAssistant-style reserve controller configured from:
+Version 0.4.1 includes a SolarAssistant-style reserve controller configured from:
 
 **Settings → Devices & services → Fsolar Cloud → Configure**
 
-The guided options flow lets you:
+The single options screen lets you:
 
 1. Select every Home Assistant sensor that reports an individual battery SOC.
 2. Enable or disable automatic reserve control.
 3. Configure low and high SOC thresholds at daily points A and B.
+
+Points A and B are expanded on the same screen. The fields explicitly show
+which level selects `UTI` (Utility first) and which level selects `SBU`
+(Solar/Battery/Utility).
 
 The defaults define a flat 24-hour reserve:
 

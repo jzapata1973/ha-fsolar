@@ -7,7 +7,11 @@ import unittest
 from types import SimpleNamespace
 
 try:
-    from custom_components.fsolar.config_flow import FsolarOptionsFlow
+    from custom_components.fsolar.config_flow import (
+        SECTION_POINT_A,
+        SECTION_POINT_B,
+        FsolarOptionsFlow,
+    )
     from custom_components.fsolar.const import (
         CONF_RESERVE_ENABLED,
         CONF_RESERVE_POINT_A_HIGH,
@@ -29,27 +33,25 @@ else:
     "Home Assistant runtime is required",
 )
 class OptionsFlowTests(unittest.TestCase):
-    """Verify both reserve configuration steps and validation."""
+    """Verify the single-screen reserve configuration and validation."""
 
-    def test_valid_flow_creates_complete_options(self) -> None:
+    def test_form_exposes_both_reserve_points(self) -> None:
         async def run_flow() -> None:
             flow = _flow()
-            first_form = await flow.async_step_init()
-            self.assertEqual(first_form["step_id"], "init")
+            form = await flow.async_step_init()
+            self.assertEqual(form["step_id"], "init")
+            self.assertIn(SECTION_POINT_A, form["data_schema"].schema)
+            self.assertIn(SECTION_POINT_B, form["data_schema"].schema)
 
-            schedule_form = await flow.async_step_init(
-                {
-                    CONF_RESERVE_ENABLED: True,
-                    CONF_RESERVE_SOC_ENTITIES: [
-                        "sensor.battery_one",
-                        "sensor.battery_two",
-                    ],
-                }
-            )
-            self.assertEqual(schedule_form["step_id"], "schedule")
+        asyncio.run(run_flow())
 
-            result = await flow.async_step_schedule(_schedule())
+    def test_valid_flow_creates_complete_flat_options(self) -> None:
+        async def run_flow() -> None:
+            flow = _flow()
+            result = await flow.async_step_init(_options_input(enabled=True))
             self.assertTrue(result["data"][CONF_RESERVE_ENABLED])
+            self.assertNotIn(SECTION_POINT_A, result["data"])
+            self.assertNotIn(SECTION_POINT_B, result["data"])
             self.assertEqual(
                 result["data"][CONF_RESERVE_POINT_A_LOW],
                 50,
@@ -60,12 +62,9 @@ class OptionsFlowTests(unittest.TestCase):
     def test_enabled_control_requires_soc_sensor(self) -> None:
         async def run_flow() -> None:
             flow = _flow()
-            result = await flow.async_step_init(
-                {
-                    CONF_RESERVE_ENABLED: True,
-                    CONF_RESERVE_SOC_ENTITIES: [],
-                }
-            )
+            user_input = _options_input(enabled=True)
+            user_input[CONF_RESERVE_SOC_ENTITIES] = []
+            result = await flow.async_step_init(user_input)
             self.assertEqual(result["step_id"], "init")
             self.assertEqual(
                 result["errors"][CONF_RESERVE_SOC_ENTITIES],
@@ -74,27 +73,34 @@ class OptionsFlowTests(unittest.TestCase):
 
         asyncio.run(run_flow())
 
-    def test_schedule_rejects_equal_times_and_invalid_hysteresis(self) -> None:
+    def test_form_rejects_equal_times(self) -> None:
         async def run_flow() -> None:
             flow = _flow()
-            await flow.async_step_init(
-                {
-                    CONF_RESERVE_ENABLED: False,
-                    CONF_RESERVE_SOC_ENTITIES: [],
-                }
-            )
-            invalid = _schedule()
-            invalid[CONF_RESERVE_POINT_B_TIME] = invalid[CONF_RESERVE_POINT_A_TIME]
-            invalid[CONF_RESERVE_POINT_A_HIGH] = invalid[CONF_RESERVE_POINT_A_LOW]
+            invalid = _options_input()
+            invalid[SECTION_POINT_B][CONF_RESERVE_POINT_B_TIME] = invalid[
+                SECTION_POINT_A
+            ][CONF_RESERVE_POINT_A_TIME]
 
-            result = await flow.async_step_schedule(invalid)
+            result = await flow.async_step_init(invalid)
             self.assertEqual(
                 result["errors"]["base"],
                 "reserve_times_must_differ",
             )
+
+        asyncio.run(run_flow())
+
+    def test_form_identifies_invalid_point_a_hysteresis(self) -> None:
+        async def run_flow() -> None:
+            flow = _flow()
+            invalid = _options_input()
+            invalid[SECTION_POINT_A][CONF_RESERVE_POINT_A_HIGH] = invalid[
+                SECTION_POINT_A
+            ][CONF_RESERVE_POINT_A_LOW]
+
+            result = await flow.async_step_init(invalid)
             self.assertEqual(
-                result["errors"][CONF_RESERVE_POINT_A_HIGH],
-                "high_must_exceed_low",
+                result["errors"]["base"],
+                "point_a_high_must_exceed_low",
             )
 
         asyncio.run(run_flow())
@@ -111,12 +117,21 @@ def _flow():
     return flow
 
 
-def _schedule() -> dict:
+def _options_input(*, enabled: bool = False) -> dict:
     return {
-        CONF_RESERVE_POINT_A_TIME: "08:00:00",
-        CONF_RESERVE_POINT_A_LOW: 50,
-        CONF_RESERVE_POINT_A_HIGH: 55,
-        CONF_RESERVE_POINT_B_TIME: "18:00:00",
-        CONF_RESERVE_POINT_B_LOW: 50,
-        CONF_RESERVE_POINT_B_HIGH: 55,
+        CONF_RESERVE_ENABLED: enabled,
+        CONF_RESERVE_SOC_ENTITIES: [
+            "sensor.battery_one",
+            "sensor.battery_two",
+        ],
+        SECTION_POINT_A: {
+            CONF_RESERVE_POINT_A_TIME: "08:00:00",
+            CONF_RESERVE_POINT_A_LOW: 50,
+            CONF_RESERVE_POINT_A_HIGH: 55,
+        },
+        SECTION_POINT_B: {
+            CONF_RESERVE_POINT_B_TIME: "18:00:00",
+            CONF_RESERVE_POINT_B_LOW: 50,
+            CONF_RESERVE_POINT_B_HIGH: 55,
+        },
     }

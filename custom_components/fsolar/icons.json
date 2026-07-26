@@ -1,0 +1,12 @@
+{
+  "options": {
+    "step": {
+      "init": {
+        "sections": {
+          "point_a": "mdi:clock-start",
+          "point_b": "mdi:clock-end"
+        }
+      }
+    }
+  }
+}

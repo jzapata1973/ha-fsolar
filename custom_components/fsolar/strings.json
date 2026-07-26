@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "title": "Battery reserve control",
-        "description": "Select every battery SOC sensor that must remain protected. The lowest valid SOC controls all Fsolar inverters.",
+        "description": "Protect a minimum battery reserve with the lowest selected SOC. Configure the complete daily curve below; both points are connected linearly across 24 hours.",
         "data": {
           "reserve_enabled": "Enable automatic reserve control",
           "reserve_soc_entities": "Battery SOC sensors"
@@ -32,25 +32,42 @@
         "data_description": {
           "reserve_enabled": "When enabled, Fsolar will automatically change output source priority on every inverter.",
           "reserve_soc_entities": "All selected sensors must be available and report a value from 0 to 100."
-        }
-      },
-      "schedule": {
-        "title": "Daily reserve curve",
-        "description": "Thresholds are interpolated between points A and B. At or below the low threshold, output changes to UTI. At or above the high threshold, it changes to SBU.",
-        "data": {
-          "reserve_point_a_time": "Point A time",
-          "reserve_point_a_low": "Point A low threshold",
-          "reserve_point_a_high": "Point A high threshold",
-          "reserve_point_b_time": "Point B time",
-          "reserve_point_b_low": "Point B low threshold",
-          "reserve_point_b_high": "Point B high threshold"
+        },
+        "sections": {
+          "point_a": {
+            "name": "Point A",
+            "description": "First daily reserve point.",
+            "data": {
+              "reserve_point_a_time": "Time",
+              "reserve_point_a_low": "Utility first at or below",
+              "reserve_point_a_high": "Solar/Battery/Utility at or above"
+            },
+            "data_description": {
+              "reserve_point_a_low": "At this SOC or lower, every inverter changes to UTI to protect the reserve.",
+              "reserve_point_a_high": "At this SOC or higher, every inverter changes to SBU and the battery becomes available."
+            }
+          },
+          "point_b": {
+            "name": "Point B",
+            "description": "Second daily reserve point.",
+            "data": {
+              "reserve_point_b_time": "Time",
+              "reserve_point_b_low": "Utility first at or below",
+              "reserve_point_b_high": "Solar/Battery/Utility at or above"
+            },
+            "data_description": {
+              "reserve_point_b_low": "At this SOC or lower, every inverter changes to UTI to protect the reserve.",
+              "reserve_point_b_high": "At this SOC or higher, every inverter changes to SBU and the battery becomes available."
+            }
+          }
         }
       }
     },
     "error": {
       "soc_entities_required": "Select at least one battery SOC sensor before enabling control",
       "reserve_times_must_differ": "Points A and B must use different times",
-      "high_must_exceed_low": "The high threshold must be greater than the low threshold"
+      "point_a_high_must_exceed_low": "At point A, the Solar/Battery/Utility threshold must be greater than the Utility first threshold",
+      "point_b_high_must_exceed_low": "At point B, the Solar/Battery/Utility threshold must be greater than the Utility first threshold"
     }
   },
   "entity": {
