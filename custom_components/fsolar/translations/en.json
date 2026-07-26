@@ -20,7 +20,45 @@
       "already_configured": "This Fsolar account is already configured"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Battery reserve control",
+        "description": "Select every battery SOC sensor that must remain protected. The lowest valid SOC controls all Fsolar inverters.",
+        "data": {
+          "reserve_enabled": "Enable automatic reserve control",
+          "reserve_soc_entities": "Battery SOC sensors"
+        },
+        "data_description": {
+          "reserve_enabled": "When enabled, Fsolar will automatically change output source priority on every inverter.",
+          "reserve_soc_entities": "All selected sensors must be available and report a value from 0 to 100."
+        }
+      },
+      "schedule": {
+        "title": "Daily reserve curve",
+        "description": "Thresholds are interpolated between points A and B. At or below the low threshold, output changes to UTI. At or above the high threshold, it changes to SBU.",
+        "data": {
+          "reserve_point_a_time": "Point A time",
+          "reserve_point_a_low": "Point A low threshold",
+          "reserve_point_a_high": "Point A high threshold",
+          "reserve_point_b_time": "Point B time",
+          "reserve_point_b_low": "Point B low threshold",
+          "reserve_point_b_high": "Point B high threshold"
+        }
+      }
+    },
+    "error": {
+      "soc_entities_required": "Select at least one battery SOC sensor before enabling control",
+      "reserve_times_must_differ": "Points A and B must use different times",
+      "high_must_exceed_low": "The high threshold must be greater than the low threshold"
+    }
+  },
   "entity": {
+    "binary_sensor": {
+      "battery_reserve_enabled": {
+        "name": "Battery reserve control"
+      }
+    },
     "number": {
       "max_grid_charge_current": {
         "name": "Maximum grid charge current"
@@ -42,6 +80,42 @@
           "SUB": "Solar first",
           "SBU": "Solar/Battery/Utility"
         }
+      }
+    },
+    "sensor": {
+      "battery_reserve_minimum_soc": {
+        "name": "Minimum battery SOC"
+      },
+      "battery_reserve_low_threshold": {
+        "name": "Current low threshold"
+      },
+      "battery_reserve_high_threshold": {
+        "name": "Current high threshold"
+      },
+      "battery_reserve_output_mode": {
+        "name": "Output priority",
+        "state": {
+          "UTI": "Utility first",
+          "SUB": "Solar first",
+          "SBU": "Solar/Battery/Utility",
+          "mixed": "Mixed",
+          "unknown": "Unknown"
+        }
+      },
+      "battery_reserve_status": {
+        "name": "Reserve status",
+        "state": {
+          "disabled": "Disabled",
+          "waiting_for_soc": "Waiting for SOC",
+          "standby": "Inside hysteresis band",
+          "applying": "Applying priority",
+          "utility_first": "Protecting reserve",
+          "battery_first": "Battery available",
+          "error": "Error"
+        }
+      },
+      "battery_reserve_last_change": {
+        "name": "Last reserve change"
       }
     }
   }

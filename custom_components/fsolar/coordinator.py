@@ -35,6 +35,7 @@ class FsolarCoordinator(DataUpdateCoordinator[dict[str, FsolarSettings]]):
         self.api = api
         self.inverters = inverters
         self.failed_serials: set[str] = set()
+        self.command_lock = asyncio.Lock()
 
     async def _async_update_data(self) -> dict[str, FsolarSettings]:
         results = await asyncio.gather(

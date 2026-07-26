@@ -19,7 +19,7 @@ from .coordinator import FsolarCoordinator
 
 async def async_setup_entry(hass, entry: FsolarConfigEntry, async_add_entities):
     """Set up maximum grid charge current entities."""
-    coordinator = entry.runtime_data
+    coordinator = entry.runtime_data.coordinator
     async_add_entities(
         FsolarMaxGridChargeCurrentNumber(coordinator, inverter)
         for inverter in coordinator.inverters
@@ -75,9 +75,10 @@ class FsolarMaxGridChargeCurrentNumber(
         if value != integer_value:
             raise ValueError("Maximum grid charge current must be a whole ampere")
         try:
-            await self.coordinator.api.async_set_max_grid_charge_current(
-                self._inverter.serial, integer_value
-            )
+            async with self.coordinator.command_lock:
+                await self.coordinator.api.async_set_max_grid_charge_current(
+                    self._inverter.serial, integer_value
+                )
         except FsolarCommandError:
             await self.coordinator.async_request_refresh()
             raise

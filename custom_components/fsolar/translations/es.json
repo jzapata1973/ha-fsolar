@@ -20,7 +20,45 @@
       "already_configured": "Esta cuenta Fsolar ya está configurada"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Control de reserva de batería",
+        "description": "Selecciona todos los sensores de SOC que deben permanecer protegidos. El SOC válido más bajo controlará los inversores Fsolar.",
+        "data": {
+          "reserve_enabled": "Activar control automático de reserva",
+          "reserve_soc_entities": "Sensores de SOC de las baterías"
+        },
+        "data_description": {
+          "reserve_enabled": "Al activarlo, Fsolar cambiará automáticamente la prioridad de salida en cada inversor.",
+          "reserve_soc_entities": "Todos los sensores seleccionados deben estar disponibles e indicar un valor entre 0 y 100."
+        }
+      },
+      "schedule": {
+        "title": "Curva diaria de reserva",
+        "description": "Los límites se interpolan entre los puntos A y B. En el límite bajo o por debajo se ordena UTI; en el límite alto o por encima se ordena SBU.",
+        "data": {
+          "reserve_point_a_time": "Hora del punto A",
+          "reserve_point_a_low": "Límite bajo del punto A",
+          "reserve_point_a_high": "Límite alto del punto A",
+          "reserve_point_b_time": "Hora del punto B",
+          "reserve_point_b_low": "Límite bajo del punto B",
+          "reserve_point_b_high": "Límite alto del punto B"
+        }
+      }
+    },
+    "error": {
+      "soc_entities_required": "Selecciona al menos un sensor de SOC antes de activar el control",
+      "reserve_times_must_differ": "Los puntos A y B deben tener horas diferentes",
+      "high_must_exceed_low": "El límite alto debe ser mayor que el límite bajo"
+    }
+  },
   "entity": {
+    "binary_sensor": {
+      "battery_reserve_enabled": {
+        "name": "Control de reserva de batería"
+      }
+    },
     "number": {
       "max_grid_charge_current": {
         "name": "Corriente máxima de carga desde la red"
@@ -42,6 +80,42 @@
           "SUB": "Solar primero",
           "SBU": "Solar/Batería/Red"
         }
+      }
+    },
+    "sensor": {
+      "battery_reserve_minimum_soc": {
+        "name": "SOC mínimo de las baterías"
+      },
+      "battery_reserve_low_threshold": {
+        "name": "Límite bajo actual"
+      },
+      "battery_reserve_high_threshold": {
+        "name": "Límite alto actual"
+      },
+      "battery_reserve_output_mode": {
+        "name": "Prioridad de salida",
+        "state": {
+          "UTI": "Red primero",
+          "SUB": "Solar primero",
+          "SBU": "Solar/Batería/Red",
+          "mixed": "Mixta",
+          "unknown": "Desconocida"
+        }
+      },
+      "battery_reserve_status": {
+        "name": "Estado de la reserva",
+        "state": {
+          "disabled": "Desactivado",
+          "waiting_for_soc": "Esperando SOC",
+          "standby": "Dentro de la banda de histéresis",
+          "applying": "Aplicando prioridad",
+          "utility_first": "Protegiendo reserva",
+          "battery_first": "Batería disponible",
+          "error": "Error"
+        }
+      },
+      "battery_reserve_last_change": {
+        "name": "Último cambio de reserva"
       }
     }
   }

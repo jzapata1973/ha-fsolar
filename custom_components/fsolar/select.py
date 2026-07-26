@@ -22,7 +22,7 @@ from .coordinator import FsolarCoordinator
 
 async def async_setup_entry(hass, entry: FsolarConfigEntry, async_add_entities):
     """Set up inverter priority entities."""
-    coordinator = entry.runtime_data
+    coordinator = entry.runtime_data.coordinator
     async_add_entities(
         entity
         for inverter in coordinator.inverters
@@ -75,9 +75,10 @@ class FsolarSourcePrioritySelect(CoordinatorEntity[FsolarCoordinator], SelectEnt
         """Set and verify Source Priority Charge."""
         value = SOURCE_PRIORITY_VALUES[option]
         try:
-            await self.coordinator.api.async_set_source_priority(
-                self._inverter.serial, value
-            )
+            async with self.coordinator.command_lock:
+                await self.coordinator.api.async_set_source_priority(
+                    self._inverter.serial, value
+                )
         except FsolarCommandError:
             await self.coordinator.async_request_refresh()
             raise
@@ -128,9 +129,10 @@ class FsolarOutputSourcePrioritySelect(
         """Set and verify Output source priority."""
         value = OUTPUT_SOURCE_PRIORITY_VALUES[option]
         try:
-            await self.coordinator.api.async_set_output_source_priority(
-                self._inverter.serial, value
-            )
+            async with self.coordinator.command_lock:
+                await self.coordinator.api.async_set_output_source_priority(
+                    self._inverter.serial, value
+                )
         except FsolarCommandError:
             await self.coordinator.async_request_refresh()
             raise

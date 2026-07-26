@@ -3,14 +3,31 @@
 from typing import Final
 
 DOMAIN: Final = "fsolar"
-PLATFORMS: Final = ["number", "select"]
+PLATFORMS: Final = ["binary_sensor", "number", "select", "sensor"]
 
 CONF_INVERTERS: Final = "inverters"
+CONF_RESERVE_ENABLED: Final = "reserve_enabled"
+CONF_RESERVE_SOC_ENTITIES: Final = "reserve_soc_entities"
+CONF_RESERVE_POINT_A_TIME: Final = "reserve_point_a_time"
+CONF_RESERVE_POINT_A_LOW: Final = "reserve_point_a_low"
+CONF_RESERVE_POINT_A_HIGH: Final = "reserve_point_a_high"
+CONF_RESERVE_POINT_B_TIME: Final = "reserve_point_b_time"
+CONF_RESERVE_POINT_B_LOW: Final = "reserve_point_b_low"
+CONF_RESERVE_POINT_B_HIGH: Final = "reserve_point_b_high"
 
 API_BASE_URL: Final = "https://shine-api.felicitysolar.com"
 WEB_BASE_URL: Final = "https://shine.felicitysolar.com"
 
 DEFAULT_SCAN_INTERVAL: Final = 60
+DEFAULT_RESERVE_ENABLED: Final = False
+DEFAULT_RESERVE_POINT_A_TIME: Final = "08:00:00"
+DEFAULT_RESERVE_POINT_A_LOW: Final = 50
+DEFAULT_RESERVE_POINT_A_HIGH: Final = 55
+DEFAULT_RESERVE_POINT_B_TIME: Final = "18:00:00"
+DEFAULT_RESERVE_POINT_B_LOW: Final = 50
+DEFAULT_RESERVE_POINT_B_HIGH: Final = 55
+RESERVE_EVALUATION_INTERVAL: Final = 60
+RESERVE_RETRY_INTERVAL: Final = 120
 
 SOURCE_PRIORITY_FIELD: Final = "cspri"
 SOURCE_PRIORITY_VALUES: Final = {
