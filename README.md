@@ -8,6 +8,10 @@ The integration exposes these controls for every supported inverter:
   - `CSO` — Solar first
   - `SNU` — Solar and utility
   - `OSO` — Only solar
+- **Output source priority** (`select`):
+  - `UTI` — Utility first
+  - `SUB` — Solar first, then utility, then battery
+  - `SBU` — Solar first, then battery, then utility
 - **Maximum grid charge current** (`number`): 10–240 A in whole-amp steps.
 
 Every write is sent to the selected inverter only. The integration waits for

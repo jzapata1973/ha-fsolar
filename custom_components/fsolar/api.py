@@ -18,6 +18,7 @@ from .const import (
     MAX_GRID_CHARGE_CURRENT_FIELD,
     MAX_GRID_CHARGE_CURRENT_MAX,
     MAX_GRID_CHARGE_CURRENT_MIN,
+    OUTPUT_SOURCE_PRIORITY_FIELD,
     SOURCE_PRIORITY_FIELD,
     WEB_BASE_URL,
 )
@@ -49,6 +50,7 @@ class FsolarSettings:
     """Supported settings read from an inverter."""
 
     source_priority: int
+    output_source_priority: int
     max_grid_charge_current: int
 
 
@@ -142,6 +144,9 @@ class FsolarApi:
         )
         values = data.get("data") or {}
         raw_priority = values.get(SOURCE_PRIORITY_FIELD, values.get("cSPri"))
+        raw_output_priority = values.get(
+            OUTPUT_SOURCE_PRIORITY_FIELD, values.get("oSPri")
+        )
         raw_current = values.get(
             MAX_GRID_CHARGE_CURRENT_FIELD, values.get("MACCurr")
         )
@@ -154,6 +159,14 @@ class FsolarApi:
                 f"Device {serial[-4:]} returned unsupported cspri={priority}"
             )
         try:
+            output_priority = int(raw_output_priority)
+        except (TypeError, ValueError) as err:
+            raise FsolarError(f"Device {serial[-4:]} did not return ospri") from err
+        if output_priority not in (0, 1, 2):
+            raise FsolarError(
+                f"Device {serial[-4:]} returned unsupported ospri={output_priority}"
+            )
+        try:
             current = int(raw_current)
         except (TypeError, ValueError) as err:
             raise FsolarError(f"Device {serial[-4:]} did not return maccurr") from err
@@ -161,7 +174,7 @@ class FsolarApi:
             raise FsolarError(
                 f"Device {serial[-4:]} returned unsupported maccurr={current}"
             )
-        return FsolarSettings(priority, current)
+        return FsolarSettings(priority, output_priority, current)
 
     async def async_get_source_priority(self, serial: str) -> int:
         """Read Source Priority Charge (cspri) from an inverter."""
@@ -170,6 +183,10 @@ class FsolarApi:
     async def async_get_max_grid_charge_current(self, serial: str) -> int:
         """Read maximum grid charge current (maccurr) from an inverter."""
         return (await self.async_get_settings(serial)).max_grid_charge_current
+
+    async def async_get_output_source_priority(self, serial: str) -> int:
+        """Read Output source priority (ospri) from an inverter."""
+        return (await self.async_get_settings(serial)).output_source_priority
 
     async def async_set_source_priority(self, serial: str, value: int) -> None:
         """Set cspri, wait for completion, and verify by reading it back."""
@@ -183,6 +200,26 @@ class FsolarApi:
             param_type=1,
         )
         actual = await self.async_get_source_priority(serial)
+        if actual != value:
+            raise FsolarCommandError(
+                f"Verification failed for {serial[-4:]}: "
+                f"expected {value}, received {actual}"
+            )
+
+    async def async_set_output_source_priority(
+        self, serial: str, value: int
+    ) -> None:
+        """Set ospri, wait for completion, and verify by reading it back."""
+        if value not in (0, 1, 2):
+            raise ValueError("Output source priority must be 0, 1 or 2")
+
+        await self._async_set_setting(
+            serial=serial,
+            field=OUTPUT_SOURCE_PRIORITY_FIELD,
+            value=value,
+            param_type=1,
+        )
+        actual = await self.async_get_output_source_priority(serial)
         if actual != value:
             raise FsolarCommandError(
                 f"Verification failed for {serial[-4:]}: "
@@ -263,11 +300,12 @@ class FsolarApi:
         for _attempt in range(10):
             await asyncio.sleep(2)
             settings = await self.async_get_settings(serial)
-            actual = (
-                settings.source_priority
-                if field == SOURCE_PRIORITY_FIELD
-                else settings.max_grid_charge_current
-            )
+            if field == SOURCE_PRIORITY_FIELD:
+                actual = settings.source_priority
+            elif field == OUTPUT_SOURCE_PRIORITY_FIELD:
+                actual = settings.output_source_priority
+            else:
+                actual = settings.max_grid_charge_current
             if actual == expected:
                 return
             response = await self._async_authed_request(

@@ -34,6 +34,14 @@
           "SNU": "Solar and utility",
           "OSO": "Only solar"
         }
+      },
+      "output_source_priority": {
+        "name": "Output source priority",
+        "state": {
+          "UTI": "Utility first",
+          "SUB": "Solar first",
+          "SBU": "Solar/Battery/Utility"
+        }
       }
     }
   }

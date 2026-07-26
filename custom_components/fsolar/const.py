@@ -22,6 +22,16 @@ SOURCE_PRIORITY_BY_VALUE: Final = {
     value: option for option, value in SOURCE_PRIORITY_VALUES.items()
 }
 
+OUTPUT_SOURCE_PRIORITY_FIELD: Final = "ospri"
+OUTPUT_SOURCE_PRIORITY_VALUES: Final = {
+    "UTI": 0,
+    "SUB": 1,
+    "SBU": 2,
+}
+OUTPUT_SOURCE_PRIORITY_BY_VALUE: Final = {
+    value: option for option, value in OUTPUT_SOURCE_PRIORITY_VALUES.items()
+}
+
 MAX_GRID_CHARGE_CURRENT_FIELD: Final = "maccurr"
 MAX_GRID_CHARGE_CURRENT_MIN: Final = 10
 MAX_GRID_CHARGE_CURRENT_MAX: Final = 240
